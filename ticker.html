@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Super Flexible Live Ticker</title>
+  <style>
+    :root {
+      --ticker-font: 'Arial, sans-serif';
+      --ticker-size: 28px;
+      --ticker-color: #fff;
+      --ticker-bg: rgba(0,0,0,0);
+      --ticker-padding-top: 0.3em;
+      --ticker-padding-bottom: 0.3em;
+      --ticker-shadow: none;
+    }
+    html, body {
+      margin: 0; padding: 0; background: transparent;
+      height: 100%;
+    }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      color: #fff; background: transparent;
+      min-height: 100vh;
+    }
+
+    /* --- Ticker Bar --- */
+    .ticker-bar {
+      position: fixed;
+      left: 0; width: 100vw;
+      z-index: 99;
+      background: var(--ticker-bg);
+      padding-top: var(--ticker-padding-top);
+      padding-bottom: var(--ticker-padding-bottom);
+      min-height: calc(var(--ticker-size) * 1.3);
+      height: calc(var(--ticker-size) * 1.3);
+      display: flex; align-items: center;
+      overflow: hidden;
+      border: none; box-shadow: none;
+      pointer-events: none;
+      transition: background 0.2s, padding 0.2s;
+    }
+    .ticker-top   { top: 0;    bottom: auto; transform: none; }
+    .ticker-center{ top: 50%;  bottom: auto; transform: translateY(-50%); }
+    .ticker-bottom{ top: auto; bottom: 0;    transform: none; }
+
+    .ticker-inner {
+      width: 100vw; height: 100%;
+      overflow: hidden;
+      user-select: none;
+      pointer-events: none;
+      display: flex; align-items: center;
+      position: relative;
+    }
+    #ticker-track {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      will-change: transform;
+      position: absolute;
+      left: 0; top: 0;
+    }
+    .ticker-text {
+      display: block;
+      height: 100%;
+      line-height: normal;
+      vertical-align: middle;
+      font-family: var(--ticker-font);
+      font-size: var(--ticker-size);
+      color: var(--ticker-color);
+      text-shadow: var(--ticker-shadow);
+      white-space: nowrap;
+      padding-right: 3vw;
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+
+    /* Controls Panel - compact & flat */
+    .controls-panel {
+      margin: 0 auto;
+      margin-top: 2em;
+      max-width: 700px;
+      background: #212228f5;
+      border-radius: 10px;
+      padding: 1em 1.2em 1.2em 1.2em;
+      box-shadow: none;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2em;
+      font-size: 0.98em;
+    }
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1em 1.3em;
+      align-items: center;
+      justify-content: flex-start;
+      font-size: 0.97em;
+    }
+    .controls-row label {
+      font-weight: 500;
+      font-size: 1em;
+      margin-bottom: 0.1em;
+    }
+    .controls-row input[type="color"] {
+      width: 28px;
+      height: 28px;
+      border-radius: 5px;
+      border: none;
+      margin-left: 0.3em;
+      background: none;
+      cursor: pointer;
+    }
+    .controls-row input[type="range"] {
+      width: 90px;
+      accent-color: #0094ff;
+      margin: 0 0.5em;
+      vertical-align: middle;
+    }
+    .controls-row input[type="text"] {
+      font-size: 0.96em;
+      border-radius: 3px;
+      border: none;
+      padding: 0.18em 0.6em;
+      width: 140px;
+    }
+    .controls-row textarea {
+      width: 95%;
+      min-width: 200px;
+      min-height: 2.2em;
+      padding: 0.5em 0.8em;
+      border-radius: 6px;
+      border: none;
+      font-size: 1.03em;
+      resize: vertical;
+      margin-top: 0.3em;
+      font-family: inherit;
+    }
+    .slider-value {
+      font-size: 0.96em;
+      color: #eee;
+      background: #222e;
+      border-radius: 3px;
+      min-width: 2.1em;
+      display: inline-block;
+      text-align: center;
+      padding: 0.10em 0.28em;
+      margin-left: 0.2em;
+    }
+    .checkbox-inline {
+      display: flex;
+      align-items: center;
+      gap: 0.4em;
+      font-size: 0.97em;
+      margin-right: 1em;
+    }
+    .controls-row .radio-group {
+      display: flex;
+      align-items: center;
+      gap: 1em;
+      margin-left: 0.4em;
+    }
+    .radio-group label {
+      font-weight: 400;
+      font-size: 0.97em;
+      margin: 0 0.18em 0 0;
+      cursor: pointer;
+    }
+    .radio-group input[type="radio"] {
+      margin-right: 0.15em;
+      accent-color: #0094ff;
+      vertical-align: middle;
+    }
+
+    /* Hide controls when not editing */
+    .controls-panel.hide-controls {
+      display: none !important;
+    }
+
+    /* Settings toggle button */
+    #settingsToggle {
+      position: fixed;
+      right: 20px;
+      top: 33%;
+      z-index: 200;
+      background: #2b2d35e0;
+      color: #fff;
+      font-size: 1.03em;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      padding: 0.5em 1.1em;
+      cursor: pointer;
+      box-shadow: none;
+      transition: background 0.2s;
+      opacity: 0.95;
+      letter-spacing: 0.04em;
+    }
+    #settingsToggle:hover {
+      background: #46537de8;
+    }
+    @media (max-width: 600px) {
+      .controls-panel { padding: 0.7em 0.25em; }
+      .controls-row { flex-direction: column; gap: 0.8em; }
+      .controls-row textarea { width: 98%; }
+      #settingsToggle { font-size: 1em; top: 2%; right: 5px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Settings toggle -->
+  <button id="settingsToggle" aria-label="Show/Hide Ticker Settings">Show Settings</button>
+  <!-- Ticker with flexible placement -->
+  <div class="ticker-bar ticker-top" id="tickerBar">
+    <div class="ticker-inner">
+      <div id="ticker-track">
+        <span class="ticker-text" id="ticker"></span>
+        <span class="ticker-text" id="ticker-dup"></span>
+      </div>
+    </div>
+  </div>
+  <div class="controls-panel" id="controlsPanel">
+    <div class="controls-row">
+      <label for="text">Ticker Text:</label>
+      <textarea id="text" placeholder="Type your ticker text here"></textarea>
+    </div>
+    <div class="controls-row">
+      <label for="speed">Scroll Speed</label>
+      <input id="speed" type="range" min="30" max="400" step="1" />
+      <span class="slider-value" id="speedVal"></span> <span style="font-size: 0.95em;">px/sec</span>
+
+      <label for="size">Font Size</label>
+      <input id="size" type="range" min="14" max="72" step="1" />
+      <span class="slider-value" id="sizeVal"></span>
+
+      <label for="font">Font Family</label>
+      <input id="font" type="text" placeholder="e.g. 'Montserrat', 'Comic Sans MS'" />
+
+      <label for="color">Text Color</label>
+      <input id="color" type="color" />
+
+      <label for="bg">Background</label>
+      <input id="bg" type="color" />
+
+      <label for="bgAlpha">BG Opacity</label>
+      <input id="bgAlpha" type="range" min="0" max="100" step="1" />
+      <span class="slider-value" id="bgAlphaVal"></span>
+    </div>
+    <div class="controls-row">
+      <div class="checkbox-inline">
+        <input type="checkbox" id="shadow" />
+        <label for="shadow">Text Shadow</label>
+      </div>
+      <label for="paddingTop">Top Padding</label>
+      <input id="paddingTop" type="range" min="0" max="40" step="1" />
+      <span class="slider-value" id="paddingTopVal"></span>
+      <label for="paddingBottom">Bottom Padding</label>
+      <input id="paddingBottom" type="range" min="0" max="40" step="1" />
+      <span class="slider-value" id="paddingBottomVal"></span>
+      <div class="radio-group">
+        <label>Ticker Position:</label>
+        <input type="radio" name="position" id="posTop" value="top" checked />
+        <label for="posTop">Top</label>
+        <input type="radio" name="position" id="posCenter" value="center" />
+        <label for="posCenter">Center</label>
+        <input type="radio" name="position" id="posBottom" value="bottom" />
+        <label for="posBottom">Bottom</label>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Storage keys
+    const KEYS = {
+      text: 'tickerText',
+      speed: 'tickerSpeed',
+      size: 'tickerSize',
+      font: 'tickerFont',
+      color: 'tickerColor',
+      bg: 'tickerBg',
+      bgAlpha: 'tickerBgAlpha',
+      shadow: 'tickerShadow',
+      paddingTop: 'tickerPaddingTop',
+      paddingBottom: 'tickerPaddingBottom',
+      position: 'tickerPosition',
+      controls: 'tickerShowControls'
+    };
+
+    // DOM refs
+    const textEl  = document.getElementById('text');
+    const speedEl = document.getElementById('speed');
+    const sizeEl  = document.getElementById('size');
+    const fontEl  = document.getElementById('font');
+    const colorEl = document.getElementById('color');
+    const bgEl    = document.getElementById('bg');
+    const bgAlphaEl = document.getElementById('bgAlpha');
+    const shadowEl  = document.getElementById('shadow');
+    const paddingTopEl = document.getElementById('paddingTop');
+    const paddingBottomEl = document.getElementById('paddingBottom');
+    const posTopEl = document.getElementById('posTop');
+    const posCenterEl = document.getElementById('posCenter');
+    const posBottomEl = document.getElementById('posBottom');
+    const controlsPanel = document.getElementById('controlsPanel');
+    const settingsToggle = document.getElementById('settingsToggle');
+
+    const speedVal = document.getElementById('speedVal');
+    const sizeVal  = document.getElementById('sizeVal');
+    const bgAlphaVal = document.getElementById('bgAlphaVal');
+    const paddingTopVal = document.getElementById('paddingTopVal');
+    const paddingBottomVal = document.getElementById('paddingBottomVal');
+
+    const ticker      = document.getElementById('ticker');
+    const tickerDup   = document.getElementById('ticker-dup');
+    const tickerTrack = document.getElementById('ticker-track');
+    const tickerInner = document.querySelector('.ticker-inner');
+    const tickerBar   = document.getElementById('tickerBar');
+
+    // Helper
+    const setCSSVar = (name,val) => document.documentElement.style.setProperty(name,val);
+
+    // Storage helpers
+    function getLS(key, fallback) {
+      return (localStorage.getItem(key) ?? fallback);
+    }
+    function getLSInt(key, fallback) {
+      const val = parseInt(localStorage.getItem(key));
+      return isNaN(val) ? fallback : val;
+    }
+
+    // Initial state
+    const data = {
+      text:   getLS(KEYS.text, 'Welcome to the stream!'),
+      speed:  getLSInt(KEYS.speed, 80),
+      size:   getLSInt(KEYS.size, 28),
+      font:   getLS(KEYS.font, 'Arial, sans-serif'),
+      color:  getLS(KEYS.color, '#ffffff'),
+      bg:     getLS(KEYS.bg, '#000000'),
+      bgAlpha:getLSInt(KEYS.bgAlpha, 0),
+      shadow: getLSInt(KEYS.shadow, 0),
+      paddingTop: getLSInt(KEYS.paddingTop, 7),
+      paddingBottom: getLSInt(KEYS.paddingBottom, 7),
+      position: getLS(KEYS.position, 'top'),
+      controls: getLS(KEYS.controls, 'show')
+    };
+
+    // Hex to RGBA
+    function hexToRGBA(hex, alpha) {
+      hex = hex.replace('#', '');
+      if(hex.length === 3) hex = hex.split('').map(x=>x+x).join('');
+      const num = parseInt(hex, 16);
+      const r = (num >> 16) & 255;
+      const g = (num >> 8) & 255;
+      const b = num & 255;
+      return `rgba(${r},${g},${b},${(alpha/100).toFixed(2)})`;
+    }
+
+    // Fill controls
+    textEl.value = data.text;
+    speedEl.value = data.speed;
+    speedVal.textContent = data.speed;
+    sizeEl.value = data.size;
+    sizeVal.textContent = data.size + 'px';
+    fontEl.value = data.font;
+    colorEl.value = data.color;
+    bgEl.value = data.bg;
+    bgAlphaEl.value = data.bgAlpha;
+    bgAlphaVal.textContent = data.bgAlpha + '%';
+    shadowEl.checked = !!data.shadow;
+    paddingTopEl.value = data.paddingTop;
+    paddingTopVal.textContent = data.paddingTop + 'px';
+    paddingBottomEl.value = data.paddingBottom;
+    paddingBottomVal.textContent = data.paddingBottom + 'px';
+
+    // Set radio button
+    if (data.position === 'top') posTopEl.checked = true;
+    if (data.position === 'center') posCenterEl.checked = true;
+    if (data.position === 'bottom') posBottomEl.checked = true;
+
+    // Show/hide controls at startup
+    function updateControlsVisibility() {
+      if(data.controls === 'show') {
+        controlsPanel.classList.remove('hide-controls');
+        settingsToggle.textContent = 'Hide Settings';
+      } else {
+        controlsPanel.classList.add('hide-controls');
+        settingsToggle.textContent = 'Show Settings';
+      }
+    }
+
+    settingsToggle.addEventListener('click', ()=>{
+      data.controls = data.controls === 'show' ? 'hide' : 'show';
+      localStorage.setItem(KEYS.controls, data.controls);
+      updateControlsVisibility();
+    });
+
+    // Dynamic ticker animation based on content width + container width
+    function updateTickerLoop() {
+      ticker.textContent = data.text;
+      tickerDup.textContent = data.text;
+
+      // font settings (still needed for measurement)
+      ticker.style.fontFamily = data.font;
+      tickerDup.style.fontFamily = data.font;
+      ticker.style.fontSize = data.size + 'px';
+      tickerDup.style.fontSize = data.size + 'px';
+      ticker.style.color = data.color;
+      tickerDup.style.color = data.color;
+
+      ticker.style.height = '100%';
+      tickerDup.style.height = '100%';
+      ticker.style.lineHeight = 'normal';
+      tickerDup.style.lineHeight = 'normal';
+      ticker.style.verticalAlign = 'middle';
+      tickerDup.style.verticalAlign = 'middle';
+
+      setTimeout(() => {
+        const textW = ticker.offsetWidth;
+        const containerW = tickerInner.offsetWidth;
+
+        tickerTrack.style.width = (textW * 2 + containerW + 60) + 'px';
+
+        const pxPerSec = Math.max(30, data.speed); // min speed
+        const totalTravel = textW + containerW;
+        const duration = totalTravel / pxPerSec;
+
+        tickerTrack.style.animation = `moveTicker ${duration}s linear infinite`;
+
+        // Insert @keyframes dynamically (removes old)
+        let styleTag = document.getElementById('move-ticker-keyframes');
+        if (styleTag) styleTag.remove();
+        styleTag = document.createElement('style');
+        styleTag.id = 'move-ticker-keyframes';
+        styleTag.innerHTML = `
+        @keyframes moveTicker {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-${textW}px); }
+        }`;
+        document.head.appendChild(styleTag);
+      }, 30);
+    }
+
+    function refreshStyles() {
+      setCSSVar('--ticker-font', data.font);
+      setCSSVar('--ticker-size', data.size + 'px');
+      setCSSVar('--ticker-color', data.color);
+      setCSSVar('--ticker-bg', hexToRGBA(data.bg, data.bgAlpha));
+      setCSSVar('--ticker-shadow', data.shadow ? '2px 2px 10px #000a' : 'none');
+      setCSSVar('--ticker-padding-top', data.paddingTop + 'px');
+      setCSSVar('--ticker-padding-bottom', data.paddingBottom + 'px');
+      // Position class
+      tickerBar.classList.remove('ticker-top','ticker-center','ticker-bottom');
+      if (data.position === 'top')    tickerBar.classList.add('ticker-top');
+      if (data.position === 'center') tickerBar.classList.add('ticker-center');
+      if (data.position === 'bottom') tickerBar.classList.add('ticker-bottom');
+      updateTickerLoop();
+    }
+
+    // Event handlers
+    textEl.addEventListener('input', e=>{
+      data.text = e.target.value || ' ';
+      localStorage.setItem(KEYS.text, data.text);
+      updateTickerLoop();
+    });
+    speedEl.addEventListener('input', e=>{
+      data.speed = parseInt(e.target.value);
+      localStorage.setItem(KEYS.speed, data.speed);
+      speedVal.textContent = data.speed;
+      updateTickerLoop();
+    });
+    sizeEl.addEventListener('input', e=>{
+      data.size = parseInt(e.target.value);
+      localStorage.setItem(KEYS.size, data.size);
+      sizeVal.textContent = data.size + 'px';
+      refreshStyles();
+    });
+    fontEl.addEventListener('input', e=>{
+      data.font = e.target.value || 'Arial, sans-serif';
+      localStorage.setItem(KEYS.font, data.font);
+      refreshStyles();
+    });
+    colorEl.addEventListener('input', e=>{
+      data.color = e.target.value || '#ffffff';
+      localStorage.setItem(KEYS.color, data.color);
+      refreshStyles();
+    });
+    bgEl.addEventListener('input', e=>{
+      data.bg = e.target.value || '#000000';
+      localStorage.setItem(KEYS.bg, data.bg);
+      refreshStyles();
+    });
+    bgAlphaEl.addEventListener('input', e=>{
+      data.bgAlpha = parseInt(e.target.value);
+      localStorage.setItem(KEYS.bgAlpha, data.bgAlpha);
+      bgAlphaVal.textContent = data.bgAlpha + '%';
+      refreshStyles();
+    });
+    shadowEl.addEventListener('input', e=>{
+      data.shadow = shadowEl.checked ? 1 : 0;
+      localStorage.setItem(KEYS.shadow, data.shadow);
+      refreshStyles();
+    });
+    paddingTopEl.addEventListener('input', e=>{
+      data.paddingTop = parseInt(e.target.value);
+      localStorage.setItem(KEYS.paddingTop, data.paddingTop);
+      paddingTopVal.textContent = data.paddingTop + 'px';
+      refreshStyles();
+    });
+    paddingBottomEl.addEventListener('input', e=>{
+      data.paddingBottom = parseInt(e.target.value);
+      localStorage.setItem(KEYS.paddingBottom, data.paddingBottom);
+      paddingBottomVal.textContent = data.paddingBottom + 'px';
+      refreshStyles();
+    });
+
+    // Ticker position radio events
+    [posTopEl, posCenterEl, posBottomEl].forEach(radio => {
+      radio.addEventListener('change', () => {
+        if(radio.checked) {
+          data.position = radio.value;
+          localStorage.setItem(KEYS.position, data.position);
+          refreshStyles();
+        }
+      });
+    });
+
+    // Initial render
+    refreshStyles();
+    updateTickerLoop();
+    updateControlsVisibility();
+
+    // On window resize, update the ticker loop for new container width
+    window.addEventListener('resize', ()=>setTimeout(updateTickerLoop, 50));
+  </script>
+</body>
+</html>
